@@ -82,9 +82,6 @@ def main():
     filtered_film_permits_data = film_permits_data.loc[(film_permits_data["StartDateTime"] >= start_date)
                                                        & (film_permits_data["StartDateTime"] <= end_date)]
     
-    # rename ZipCode(s) colum to ZipCodes
-    filtered_film_permits_data = filtered_film_permits_data.rename(columns={"ZipCode(s)": "ZipCodes"})
-    
     print(f"reading {noise_complaints_path}...")
     global noise_complaints_data
     noise_complaints_data = pd.read_csv(noise_complaints_path, dtype={"Incident Zip": str}, parse_dates=["Created Date"], low_memory=False, na_filter=False)
@@ -93,7 +90,7 @@ def main():
                                                        & (noise_complaints_data["Created Date"] <= end_date)]
     
     # create new NumNoiseComplaints column applying the getCountOfNoiseComplaints formula on ZipCodes
-    filtered_film_permits_data["NumNoiseComplaints"] = filtered_film_permits_data.apply(lambda row: getCountOfNoiseComplaints(row["StartDateTime"], row["EndDateTime"], row["ZipCodes"]), axis=1)
+    filtered_film_permits_data["NumNoiseComplaints"] = filtered_film_permits_data.apply(lambda row: getCountOfNoiseComplaints(row["StartDateTime"], row["EndDateTime"], row["ZipCode(s)"]), axis=1)
 
     filtered_film_permits_data.sort_values(by=["NumNoiseComplaints", "StartDateTime", "EventID"], ascending=[False, True, True], inplace=True)
 
