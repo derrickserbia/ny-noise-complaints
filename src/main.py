@@ -1,5 +1,9 @@
 import argparse
 import datetime
+import pandas as pd
+
+FILM_PERMITS_PATH = "input/Film_Permits.csv"
+NOISE_COMPLAINTS_PATH = "input/Noise_Complaints.csv"
 
 class Arguments:
     startDate: str
@@ -12,7 +16,6 @@ def parseDate(text: str) -> datetime:
     return datetime.datetime(int(t[0]), int(t[1]), int(t[2]))
 
 def parseArguments():
-    # argparse — Parser for command-line options, arguments and sub-commands
     parser = argparse.ArgumentParser(
         prog="ny-noise-complaints",
         description="Analyzes Film Permits and Noise Complaints datasets to correlate them"
@@ -39,6 +42,19 @@ def main():
 
     print(f"startDate: {startDate}")
     print(f"endDate: {endDate}")
+
+    print("reading files...")
+    film_permits_data = pd.read_csv(FILM_PERMITS_PATH)
+    # noise_complaints_data = pd.read_csv(NOISE_COMPLAINTS_PATH)
+
+    print(f"film_permits_data row count: {film_permits_data.count()}")
+    # print(f"noise_complaints_data row count: {noise_complaints_data.count()}")
+
+    film_permits_data["StartDateTime"] = film_permits_data["StartDateTime"].astype("datetime64[ns]")
+    film_permits_data["EndDateTime"] = film_permits_data["EndDateTime"].astype("datetime64[ns]")
+    filtered_film_permits_data = film_permits_data.where((film_permits_data["StartDateTime"] >= startDate) & (film_permits_data["EndDateTime"] <= endDate))
+    
+    print(f"filtered_film_permits_data row count: {filtered_film_permits_data.count()}")
     
 
 main()
