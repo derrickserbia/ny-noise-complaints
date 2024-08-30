@@ -2,10 +2,11 @@ import argparse
 import datetime
 import pandas as pd
 import time
+import requests
 
-FILM_PERMITS_PATH = "input/Film_Permits.csv"
-NOISE_COMPLAINTS_PATH = "input/Noise_Complaints.csv"
-
+FILM_PERMITS_URL = "https://data.cityofnewyork.us/resource/tg4x-b46p.json?$offset={offset}&$where=startdatetime between '{startDate}' and '{endDate}'"
+NOISE_COMPLAINTS_URL = "https://data.cityofnewyork.us/resource/p5f6-bkga.json?$offset={offset}&$where=created_date between '{startDate}' and '{endDate}' and Incident Zip in ({zips})"
+OFFSET = 1000
 noise_complaints_data = None
 
 class Arguments:
@@ -36,12 +37,31 @@ def getCountOfNoiseComplaints(filming_start, filming_end, filming_zip_codes):
     zips = filming_zip_codes.split(",")
     count = 0
     for zip in zips:
-        s = noise_complaints_data.loc[(noise_complaints_data["Incident Zip"] == zip) 
-                                      & (noise_complaints_data["Created Date"] >= filming_start)
-                                      & (noise_complaints_data["Created Date"] <= filming_end)]
+        # s = noise_complaints_data.loc[(noise_complaints_data["Incident Zip"] == zip) 
+        #                               & (noise_complaints_data["Created Date"] >= filming_start)
+        #                               & (noise_complaints_data["Created Date"] <= filming_end)]
+
+        s = noise_complaints_data.loc[(noise_complaints_data["incident_zip"] == zip) 
+                                      & (noise_complaints_data["created_date"] >= filming_start)
+                                      & (noise_complaints_data["created_date"] <= filming_end)]
         count += s.shape[0]
     return count
 
+def get_all_rows_from_endpoint(url: str, start_date: str, end_date: str) -> list:
+    i = 0
+    json = []
+    while True:
+        offset = OFFSET * i
+        request_url = url.replace("{startDate}", start_date).replace("{endDate}", end_date).replace("{offset}", str(offset))
+        req = requests.request(url=request_url, method="GET")
+        res = req.json()
+        json.extend(res)
+        i += 1
+
+        if res == []:
+            break
+    
+    return json
 
 def main():
     startTimer = time.perf_counter()
@@ -59,35 +79,29 @@ def main():
     print(f"startDate: {startDate}")
     print(f"endDate: {endDate}")
 
-    print("reading Film_Permits.csv...")
-    film_permits_data = pd.read_csv(FILM_PERMITS_PATH, parse_dates=["StartDateTime", "EndDateTime"], na_filter=False)
-    
-    # filter permits by dates
-    filtered_film_permits_data = film_permits_data.loc[(film_permits_data["StartDateTime"] >= startDate)
-                                                       & (film_permits_data["StartDateTime"] <= endDate)]
-    
-    # rename ZipCode(s) colum to ZipCodes
-    filtered_film_permits_data = filtered_film_permits_data.rename(columns={"ZipCode(s)": "ZipCodes"})
-    
-    print("reading Noise_Complaints.csv...")
-    global noise_complaints_data
-    noise_complaints_data = pd.read_csv(NOISE_COMPLAINTS_PATH, dtype={"Incident Zip": str}, parse_dates=["Created Date"], low_memory=False, na_filter=False)
+    print("GET /Film-Permit")
+    json = get_all_rows_from_endpoint(FILM_PERMITS_URL, arguments.startDate, arguments.endDate)
+    film_permits_data = pd.json_normalize(json) # eventid, startdatetime, enddatetime, zipcode_s
+    unique_zips_list = film_permits_data["zipcode_s"].str.split(", ").explode().unique().tolist()
+    zips_str = "'" + "','".join(unique_zips_list) + "'"
+    print(zips_str)
 
-    noise_complaints_data = noise_complaints_data.loc[(noise_complaints_data["Created Date"] >= startDate)
-                                                       & (noise_complaints_data["Created Date"] <= endDate)]
+    print("GET /Noise-Complaint")
+    json = get_all_rows_from_endpoint(NOISE_COMPLAINTS_URL.replace("{zips}", zips_str), arguments.startDate, arguments.endDate)
+    global noise_complaints_data
+    noise_complaints_data = pd.json_normalize(json) #incident_zip
+
     
     # create new NumNoiseComplaints column applying the getCountOfNoiseComplaints formula on ZipCodes
-    filtered_film_permits_data["NumNoiseComplaints"] = filtered_film_permits_data.apply(lambda row: getCountOfNoiseComplaints(row["StartDateTime"], row["EndDateTime"], row["ZipCodes"]), axis=1)
+    film_permits_data["NumNoiseComplaints"] = film_permits_data.apply(lambda row: getCountOfNoiseComplaints(row["startdatetime"], row["enddatetime"], row["zipcode_s"]), axis=1)
 
-    filtered_film_permits_data.sort_values(by=["NumNoiseComplaints", "StartDateTime", "EventID"], ascending=[False, True, True], inplace=True)
+    film_permits_data.sort_values(by=["NumNoiseComplaints", "startdatetime", "eventid"], ascending=[False, True, True], inplace=True)
 
-    print(filtered_film_permits_data)
+    print(film_permits_data)
 
-    filtered_film_permits_data.to_csv("output.csv", index=False)
+    film_permits_data.to_csv("output.csv", index=False)
 
     stopTimer = time.perf_counter()
     print(f"running time={stopTimer - startTimer:0.4f} seconds")
-
-    # pop(item) - Return item and drop from frame.
 
 main()
