@@ -17,12 +17,12 @@ class TestHelperMethods(unittest.TestCase):
     def test_parse_date_too_many_date_values(self):
         text = "2024-01-01 01"
         with self.assertRaises(ValueError):
-            print(parse_date(text))
+            parse_date(text)
     
     def test_parse_date_invalid_date_values(self):
         text = "2024-01-32"
         with self.assertRaises(ValueError):
-            print(parse_date(text))
+            parse_date(text)
 
     def test_get_count_of_noise_complaints_all_applicable_to_one_film_permit(self):
         noise_complaints_data = pd.DataFrame({

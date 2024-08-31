@@ -6,17 +6,13 @@ class Arguments:
     film_permits_path: str
     noise_complaints_path: str
 
-def parse_date(text: str) -> datetime:
-    t = text.split("-")
-    if len(t) != 3:
-        raise ValueError("could not convert input to date")
-    return datetime.datetime(int(t[0]), int(t[1]), int(t[2]))
 
 def file_path(string):
     if os.path.isfile(string):
         return string
     else:
         raise FileNotFoundError(string)
+    
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -33,6 +29,14 @@ def parse_arguments():
 
     return arguments
 
+
+def parse_date(text: str) -> datetime:
+    t = text.split("-")
+    if len(t) != 3:
+        raise ValueError("could not convert input to date")
+    return datetime.datetime(int(t[0]), int(t[1]), int(t[2]))
+
+
 def initialize_arguments():
     arguments = parse_arguments()
     start_date = parse_date(arguments.start_date)
@@ -44,8 +48,8 @@ def initialize_arguments():
         print("stopping...")
         return
 
-    print(f"start_date: {start_date}")
-    print(f"end_date: {end_date}")
+    print(f"--start_date: {start_date}")
+    print(f"--end_date: {end_date}")
 
     return start_date, end_date, film_permits_path, noise_complaints_path
 
